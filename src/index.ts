@@ -53,6 +53,20 @@ type GyazoImage = {
 };
 
 /**
+ * Type for search API response.
+ */
+type SearchedGyazoImage = {
+  image_id: string;
+  permalink_url: string;
+  url: string;
+  access_policy: string | null;
+  type: string;
+  thumb_url: string;
+  created_at: string;
+  alt_text: string;
+};
+
+/**
  * Create an MCP server with capabilities for resources (to list/read images)
  * and tools (to fetch the latest image).
  */
@@ -90,7 +104,7 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
     resources: gyazoImages.map((gyazoImage) => ({
       uri: `gyazo-mcp:///${gyazoImage.image_id}`,
       mimeType: `image/${gyazoImage.type}`,
-      name: gyazoImage.metadata.title,
+      name: gyazoImage.metadata.title || gyazoImage.image_id,
     })),
   };
 });
@@ -187,6 +201,33 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["name"],
         },
       },
+      {
+        name: "gyazo_search",
+        description: "Search through user's saved Gyazo images",
+        inputSchema: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "Search query (max length: 200 characters)",
+            },
+            page: {
+              type: "integer",
+              description: "Page number for pagination",
+              minimum: 1,
+              default: 1,
+            },
+            per: {
+              type: "integer",
+              description: "Number of results per page (max: 100)",
+              minimum: 1,
+              maximum: 100,
+              default: 20,
+            },
+          },
+          required: ["query"],
+        },
+      },
     ],
   };
 });
@@ -196,7 +237,59 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
  * This server provides a single tool for fetching image metadata.
  */
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  if (request.params.name === "gyazo_latest_image") {
+  if (request.params.name === "gyazo_search") {
+    if (!request.params.arguments || typeof request.params.arguments.query !== "string") {
+      throw new Error("Invalid search arguments: query is required and must be a string");
+    }
+
+    const endpoint = "https://api.gyazo.com/api/search";
+    const params = new URLSearchParams();
+    params.append("access_token", GYAZO_ACCESS_TOKEN);
+    params.append("query", request.params.arguments.query);
+
+    const page = typeof request.params.arguments.page === "number" ? request.params.arguments.page : 1;
+    const per = typeof request.params.arguments.per === "number" ? request.params.arguments.per : 20;
+
+    params.append("page", page.toString());
+    params.append("per", per.toString());
+
+    const response = await fetch(`${endpoint}?${params.toString()}`);
+    const images: SearchedGyazoImage[] = await response.json();
+
+    if (!images || images.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "No images found",
+          }
+        ]
+      };
+    }
+
+    const contents = await Promise.all(
+      images.map(async (image) => {
+        return {
+          uri: `gyazo-mcp:///${image.image_id}`,
+          mimeType: `image/${image.type}`,
+          permalink_url: image.permalink_url,
+          url: image.url,
+          thumb_url: image.thumb_url,
+          created_at: image.created_at,
+          alt_text: image.alt_text,
+        };
+      })
+    );
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(contents, null, 2)
+        }
+      ]
+    };
+  } else if (request.params.name === "gyazo_latest_image") {
     const endpoint = "https://api.gyazo.com/api/images";
     const params = new URLSearchParams();
     params.append("access_token", GYAZO_ACCESS_TOKEN);
