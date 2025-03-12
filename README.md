@@ -82,3 +82,10 @@ npm run inspector
 ```
 
 The Inspector will provide a URL to access debugging tools in your browser.
+
+---
+
+<a href="https://glama.ai/mcp/servers/bhrk879agk">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/bhrk879agk/badge" />
+</a>
+
