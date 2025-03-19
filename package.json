@@ -11,7 +11,8 @@
     "build"
   ],
   "scripts": {
-    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "build": "npx -y tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "image:build": "docker build -t gyazo-mcp-server .",
     "prepare": "npm run build",
     "watch": "tsc --watch",
     "inspector": "npx @modelcontextprotocol/inspector build/index.js",

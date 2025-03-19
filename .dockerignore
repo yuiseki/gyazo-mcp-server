@@ -1,0 +1,23 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# IDE and editor files
+.idea
+.vscode
+.DS_Store
+
+# Build output
+build
+
+# Docker files
+Dockerfile
+.dockerignore
+
+# Misc
+tmp
