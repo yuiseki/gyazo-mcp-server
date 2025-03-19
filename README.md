@@ -45,6 +45,12 @@ For development with auto-rebuild:
 npm run watch
 ```
 
+### Docker
+
+```bash
+npm run image:build
+```
+
 ## Installation
 
 ### Prerequisites
@@ -73,6 +79,29 @@ On Windows: `%APPDATA%/Claude/claude_desktop_config.json`
 }
 ```
 
+#### Docker
+
+```json
+{
+  "mcpServers": {
+    "gyazo-mcp-server": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GYAZO_ACCESS_TOKEN",
+        "gyazo-mcp-server"
+      ],
+      "env": {
+        "GYAZO_ACCESS_TOKEN": "your-access-token-here"
+      }
+    }
+  }
+}
+```
+
 ### Debugging
 
 Since MCP servers communicate over stdio, debugging can be challenging. We recommend using the [MCP Inspector](https://github.com/modelcontextprotocol/inspector), which is available as a package script:
@@ -88,4 +117,3 @@ The Inspector will provide a URL to access debugging tools in your browser.
 <a href="https://glama.ai/mcp/servers/bhrk879agk">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/bhrk879agk/badge" />
 </a>
-
