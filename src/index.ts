@@ -228,6 +228,36 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["query"],
         },
       },
+      {
+        name: "gyazo_upload",
+        description: "Upload an image to Gyazo",
+        inputSchema: {
+          type: "object",
+          properties: {
+            imageData: {
+              type: "string",
+              description: "Base64 encoded image data",
+            },
+            title: {
+              type: "string",
+              description: "Title for the image (optional)",
+            },
+            description: {
+              type: "string",
+              description: "Description for the image (optional)",
+            },
+            refererUrl: {
+              type: "string",
+              description: "URL where the image was captured from (optional)",
+            },
+            app: {
+              type: "string",
+              description: "Application name that captured the image (optional)",
+            },
+          },
+          required: ["imageData"],
+        },
+      },
     ],
   };
 });
@@ -322,6 +352,84 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         },
       ],
     };
+  } else if (request.params.name === "gyazo_upload") {
+    if (!request.params.arguments || typeof request.params.arguments.imageData !== "string") {
+      throw new Error("Invalid upload arguments: imageData is required and must be a string");
+    }
+
+    try {
+      const endpoint = "https://upload.gyazo.com/api/upload";
+      
+      // Base64 データをバイナリに変換
+      const base64Data = request.params.arguments.imageData;
+      // Base64 のプレフィックス (例: "data:image/png;base64,") を削除
+      const base64Image = base64Data.replace(/^data:image\/(\w+);base64,/, "");
+      
+      // 画像形式を取得（プレフィックスから）
+      let imageType = "png"; // デフォルト値
+      const typeMatch = base64Data.match(/^data:image\/(\w+);base64,/);
+      if (typeMatch && typeMatch[1]) {
+        imageType = typeMatch[1];
+      }
+      
+      // バイナリデータに変換
+      const imageBuffer = Buffer.from(base64Image, 'base64');
+      
+      // FormData オブジェクトを作成
+      const formData = new FormData();
+      
+      // File オブジェクトを作成し、ファイル名を指定
+      const fileName = `screenshot_${Date.now()}.${imageType}`;
+      const file = new File([imageBuffer], fileName, { type: `image/${imageType}` });
+      
+      // ファイル名付きで imagedata を追加
+      formData.append("imagedata", file);
+      
+      // オプションのパラメータを追加
+      if (request.params.arguments.title) {
+        formData.append("title", String(request.params.arguments.title));
+      }
+      if (request.params.arguments.description) {
+        formData.append("desc", String(request.params.arguments.description));
+      }
+      if (request.params.arguments.refererUrl) {
+        formData.append("referer_url", String(request.params.arguments.refererUrl));
+      }
+      if (request.params.arguments.app) {
+        formData.append("app", String(request.params.arguments.app));
+      }
+      
+      // アクセストークンを追加
+      formData.append("access_token", GYAZO_ACCESS_TOKEN);
+      
+      // アップロードリクエストを送信
+      const response = await fetch(endpoint, {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Upload failed with status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Image successfully uploaded to Gyazo!\n\nPermalink URL: ${result.permalink_url}\nImage URL: ${result.url}\nImage ID: ${result.image_id}`,
+          }
+        ]
+      };
+    } catch (error) {
+      console.error("Upload error:", error);
+      if (error instanceof Error) {
+        throw new Error(`Upload failed: ${error.message}`);
+      } else {
+        throw new Error("Upload failed with an unknown error");
+      }
+    }
   }
 
   throw new Error(`Tool ${request.params.name} not found`);
